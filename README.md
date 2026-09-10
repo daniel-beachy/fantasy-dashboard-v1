@@ -86,6 +86,8 @@ npm run test:e2e # Desktop/mobile Playwright workflows
 
 If Playwright reports a missing browser, run `npx playwright install chromium`. Browser tests use their own contexts and do not require or access a real ESPN account.
 
+See [ESPN companion details](docs/ESPN.md) for the local API contract, identity verification, membership discovery, scoring semantics, request limits, and troubleshooting.
+
 The app uses React, TypeScript, Vite, Lucide icons, Express, and Playwright. Styling uses the Clawpilot light/dark theme variables with no external font dependency.
 
 ```text

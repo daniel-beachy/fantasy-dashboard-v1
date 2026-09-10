@@ -76,7 +76,7 @@ export function ConnectDialog({ onClose, onConnected, onDisconnect, initialSessi
     <div className="eyebrow">LESS TAB-HOPPING. MORE FOOTBALL.</div>
     <h2 id="connect-title">Your leagues. Connected.</h2>
     <p className="modal-intro">One ESPN account. Every starting lineup. An entirely better Sunday.</p>
-    <div className="privacy-note"><ShieldCheck size={20} /><span>Your password stays with ESPN. Your session stays on your machine. We never upload your credentials.</span></div>
+    <div className="privacy-note"><ShieldCheck size={20} /><span>Your password stays with ESPN. Your session stays on your machine. Credentials are sent only to ESPN, never to a third-party proxy.</span></div>
 
     {!localReady ? <>
       <h3><Terminal size={18} /> Bring your leagues home</h3>
