@@ -9,3 +9,7 @@ playwright-report/
 .DS_Store
 .auth/
 coverage/
+.wrangler/
+.dev.vars
+.dev.vars.*
+worker-configuration.d.ts

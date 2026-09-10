@@ -1,6 +1,8 @@
 # ESPN local companion
 
-The hosted dashboard is a demo. Private ESPN data is available only when this app runs on your computer:
+This document covers the optional local companion. The [Cloudflare web app](https://fantasy-dashboard-v1.daniel-beachy.workers.dev/) also supports private ESPN sessions without a local server; see [its hosting guide](CLOUDFLARE.md). The GitHub Pages deployment remains demo-only.
+
+To use local, in-memory-only authentication:
 
 ```powershell
 npm install
@@ -60,7 +62,7 @@ Common statuses: `400` invalid input/no connected leagues, `401` sign-in needed/
 ## Scoring and schedule semantics
 
 - Default season is the current calendar year, except January/February use the previous NFL season. The current scoring week is read from ESPN's `kona_game_state`, falling back to freshly fetched league `status.latestScoringPeriod`; it is not guessed from the date.
-- League requests use `mTeam`, `mSettings`, `mRoster`, `mMatchupScore`, and `mScoreboard`. Box-score filtering uses `schedule.filterMatchupPeriodIds`; matchup periods are resolved using `settings.scheduleSettings.matchupPeriods`, not confused with NFL scoring weeks.
+- Discovery/team-selection requests use only `mTeam` and `mSettings` to avoid downloading every roster. Scoring-week requests also use `mRoster`, `mMatchupScore`, and `mScoreboard`. Box-score filtering uses `schedule.filterMatchupPeriodIds`; matchup periods are resolved using `settings.scheduleSettings.matchupPeriods`, not confused with NFL scoring weeks.
 - `rosterForCurrentScoringPeriod` is preferred to the current team roster. Bench 20, IR 21, empty 22, and rookie reserve 25 are excluded. Unknown slots are excluded with a warning. A requested week that ESPN ignores is rejected, not shown with stale scores.
 - Player points are **only** the league-applied `appliedTotal` for the requested `seasonId`, `scoringPeriodId`, `statSplitTypeId: 1`, `statSourceId: 0`. Projections use source 1. Season aggregates, other weeks, and unweighted raw statistics are never substituted.
 - Matchup scores prefer `totalPointsLive`, then `totalPoints`; projections prefer ESPN's corresponding projected total. Only a complete known starting lineup can supply a fallback sum of weekly projections, and that fallback is disabled for multi-week matchups.
@@ -90,6 +92,8 @@ https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates={yea
 ```
 
 External redirects are rejected. No user-provided upstream URLs or general proxy endpoint exist.
+
+Cloudflare supports manual redirect handling, not Fetch's `redirect: "error"` mode. Both runtimes use `redirect: "manual"` and explicitly reject all 3xx responses without forwarding cookies. The native fetch function is bound to its global receiver because Workers reject calling it as an arbitrary object's method. When ESPN's primary public scoreboard host denies a cloud request with 403, the transport retries the same schedule path on ESPN's `site.web.api.espn.com` host, without credentials, and applies the same season/week validation.
 
 ## Targeted verification
 

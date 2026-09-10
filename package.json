@@ -7,6 +7,9 @@
     "dev": "tsx server/index.ts",
     "dev:ui": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
+    "build:cloud": "tsc --noEmit && vite build --mode cloud",
+    "dev:cloud": "npm run build:cloud && wrangler dev",
+    "deploy:cloud": "npm run build:cloud && wrangler d1 migrations apply DB --remote && wrangler deploy",
     "start": "tsx server/index.ts --production",
     "test": "vitest run",
     "test:e2e": "playwright test",
@@ -22,6 +25,7 @@
     "zod": "^4.1.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260903.1",
     "@playwright/test": "^1.55.0",
     "@types/express": "^5.0.0",
     "@types/node": "^22.18.0",
@@ -30,6 +34,7 @@
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.9.2",
     "vite": "^7.1.0",
-    "vitest": "^3.2.0"
+    "vitest": "^3.2.0",
+    "wrangler": "^4.128.0"
   }
 }

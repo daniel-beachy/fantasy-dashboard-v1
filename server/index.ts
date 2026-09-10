@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createApp } from './app';
 import { DashboardService } from './service';
+import { officialLogin } from './auth';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const port = Number(process.env.PORT || '3000');
@@ -12,7 +13,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
   process.exit(1);
 }
 const production = process.argv.includes('--production');
-const service = new DashboardService();
+const service = new DashboardService({ login: officialLogin });
 const app = createApp(service);
 let closeVite: (() => Promise<void>) | undefined;
 if (production) {

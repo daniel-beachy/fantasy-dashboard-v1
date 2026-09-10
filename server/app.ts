@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import express, { type ErrorRequestHandler, type RequestHandler } from 'express';
 import { z } from 'zod';
 import { AppError, safeMessage } from './errors';
+import { officialLogin } from './auth';
 import { DashboardService } from './service';
 import { seasonSchema, weekSchema } from './schemas';
 
@@ -51,7 +52,7 @@ export function localGuard(service: DashboardService): RequestHandler {
   };
 }
 
-export function createApp(service = new DashboardService()) {
+export function createApp(service = new DashboardService({ login: officialLogin })) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', false);

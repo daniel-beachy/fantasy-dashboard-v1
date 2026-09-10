@@ -1,10 +1,25 @@
 import { randomBytes } from 'node:crypto';
+import { z } from 'zod';
 import type { DashboardData, LeagueSelection, SessionStatus } from '../src/types';
-import { officialLogin, type LoginResult } from './auth';
+import type { LoginResult } from './auth';
 import { AppError, safeMessage } from './errors';
 import { EspnClient, type EspnGateway } from './espn';
 import { currentSeason, DISCOVERY_WARNING, leagueSelection, matchupPeriod, normalizeLeague, parseLeague } from './normalize';
-import { connectSchema, selectLeagueSchema, type Credentials, type EspnLeague } from './schemas';
+import { connectSchema, credentialsSchema, leagueIdSchema, seasonSchema, selectLeagueSchema, type Credentials, type EspnLeague } from './schemas';
+
+const selectionSchema = z.object({
+  id: leagueIdSchema, name: z.string(),
+  teams: z.array(z.object({ id: z.number().int(), name: z.string(), owned: z.boolean() })),
+  teamId: z.number().int().positive().optional(),
+});
+const stateSchema = z.object({
+  version: z.literal(1),
+  credentials: credentialsSchema.optional(),
+  season: seasonSchema.optional(),
+  selections: z.array(selectionSchema).max(50),
+  discoveryWarning: z.string().optional(),
+});
+export type DashboardState = z.infer<typeof stateSchema>;
 
 async function mapBounded<T, R>(items: T[], work: (item: T) => Promise<R>): Promise<R[]> {
   const results = new Array<R>(items.length);
@@ -22,11 +37,14 @@ interface ServiceOptions {
   client?: EspnGateway;
   login?: (signal: AbortSignal) => Promise<LoginResult>;
   now?: () => Date;
+  state?: unknown;
+  maxAutoLeagues?: number;
 }
 export class DashboardService {
   private readonly client: EspnGateway;
   private readonly login: (signal: AbortSignal) => Promise<LoginResult>;
   private readonly now: () => Date;
+  private readonly maxAutoLeagues: number;
   private readonly csrfToken = randomBytes(32).toString('base64url');
   private credentials?: Credentials;
   private season?: number;
@@ -42,8 +60,23 @@ export class DashboardService {
 
   constructor(options: ServiceOptions = {}) {
     this.client = options.client ?? new EspnClient();
-    this.login = options.login ?? officialLogin;
+    this.login = options.login ?? (async () => { throw new AppError(501, 'Official browser sign-in is available only in the local companion. Use your ESPN session cookies here.'); });
     this.now = options.now ?? (() => new Date());
+    this.maxAutoLeagues = Math.max(1, Math.min(50, options.maxAutoLeagues ?? 50));
+    if (options.state !== undefined) {
+      const state = stateSchema.safeParse(options.state);
+      if (!state.success) throw new AppError(502, 'The stored dashboard has an unsupported format. Disconnect and reconnect your ESPN account.');
+      this.credentials = state.data.credentials;
+      this.season = state.data.season;
+      this.discoveryWarning = state.data.discoveryWarning;
+      this.selections = new Map(state.data.selections.map(selection => [selection.id, selection]));
+    }
+  }
+  exportState(): DashboardState {
+    return structuredClone({
+      version: 1, credentials: this.credentials, season: this.season,
+      selections: [...this.selections.values()], discoveryWarning: this.discoveryWarning,
+    });
   }
   status(): SessionStatus {
     return {
@@ -70,7 +103,7 @@ export class DashboardService {
     if (this.generation !== generation) throw new AppError(409, 'The local ESPN session changed. Please retry.');
   }
   private requireCredentials(): Credentials {
-    if (!this.credentials) throw new AppError(401, 'Sign in to ESPN using this local app first.');
+    if (!this.credentials) throw new AppError(401, 'Connect your ESPN account before loading private league data.');
     return this.credentials;
   }
   async logout(): Promise<void> { this.reset(); }
@@ -112,10 +145,14 @@ export class DashboardService {
     let warning = DISCOVERY_WARNING;
     try {
       const discovered = await this.client.discover(credentials, season, profile);
-      ids = [...new Set([...ids, ...discovered.leagueIds])].slice(0, 50);
+      ids = [...new Set([...ids, ...discovered.leagueIds])];
       warning = discovered.warning || DISCOVERY_WARNING;
     } catch {
       warning = `Automatic discovery is unavailable. ${DISCOVERY_WARNING}`;
+    }
+    if (ids.length > this.maxAutoLeagues) {
+      warning = `Automatically connected the first ${this.maxAutoLeagues} discovered leagues. Add other leagues individually using their league IDs. ${warning}`;
+      ids = ids.slice(0, this.maxAutoLeagues);
     }
     this.checkGeneration(generation);
     const errors: string[] = [];
@@ -146,7 +183,7 @@ export class DashboardService {
     if (!parsed.success) throw new AppError(400, 'Provide a numeric ESPN league ID and, optionally, an owned team ID.');
     const credentials = this.requireCredentials();
     const generation = this.generation;
-    if (this.selections.size >= 50 && !this.selections.has(parsed.data.leagueId)) throw new AppError(400, 'A maximum of 50 leagues can be tracked in one local session.');
+    if (this.selections.size >= 50 && !this.selections.has(parsed.data.leagueId)) throw new AppError(400, 'A maximum of 50 leagues can be tracked in one dashboard.');
     const raw = parseLeague(await this.client.league(credentials, parsed.data.leagueId, this.season ?? currentSeason(this.now())));
     this.checkGeneration(generation);
     if (raw.status?.isActive === false) throw new AppError(400, 'This league is not active for the selected season.');

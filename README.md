@@ -4,7 +4,7 @@
 
 A responsive ESPN Fantasy Football command center for the multi-league life. See the players you need to go off, the opponents you need to slow down, and the games that matter across your starting lineups.
 
-**[Try the public demo](https://daniel-beachy.github.io/fantasy-dashboard-v1/)** · **[Connect your ESPN account](#connect-your-espn-account)**
+**[Open Sunday HQ](https://fantasy-dashboard-v1.daniel-beachy.workers.dev/)** · **[Static demo](https://daniel-beachy.github.io/fantasy-dashboard-v1/)** · **[Run locally](#connect-your-espn-account-locally)**
 
 ## What you get
 
@@ -21,11 +21,27 @@ A responsive ESPN Fantasy Football command center for the multi-league life. See
 | Mode | Where it runs | What it shows |
 | --- | --- | --- |
 | Public demo | GitHub Pages | An explicitly labeled, fixed illustrative Week 1 snapshot with three leagues and 54 starting appearances. Not current NFL scores, schedules, or rosters. |
-| ESPN-connected | Your computer | Your current ESPN football season, owned teams, active matchups, starters, opponents, league scoring, and the NFL game slate. |
+| Connected web app | Cloudflare Workers + D1 | Your ESPN leagues in a private, encrypted dashboard that can be reopened on another device. |
+| Local companion | Your computer | The same ESPN data with official browser sign-in and in-memory-only credentials. |
 
-GitHub Pages serves static files; it cannot run the server needed for private ESPN cookies. ESPN does not provide this project with a supported third-party OAuth login. **The public site does not collect passwords or session cookies and does not connect to a remote credential proxy.** Run the local companion to use your account. You cannot sign in to private leagues entirely on GitHub Pages.
+GitHub Pages remains a static demo and never accepts account cookies. The connected web app runs its backend on Cloudflare. ESPN does not provide this project with a supported third-party OAuth login: **the hosted app connects an existing ESPN session, not an ESPN username/password**.
 
 ## Connect your ESPN account
+
+1. Open [Sunday HQ on Cloudflare](https://fantasy-dashboard-v1.daniel-beachy.workers.dev/) and select **Connect ESPN**.
+2. Create a private dashboard and save its generated **recovery key** in a password manager. This key is the only way to reopen that dashboard after signing out or on another device.
+3. Sign in to ESPN in your normal browser. Copy your own `SWID` and `espn_s2` values from Developer Tools -> Application -> Cookies on the ESPN fantasy site, then import them into your private dashboard.
+4. Review discovered leagues, add missing numeric league IDs, and open your gameday view.
+
+No local server is needed for the hosted version. For another device, open the same site and use your saved recovery key; you do not need to import cookies again until ESPN expires the session. Cookie extraction may require a desktop browser even though the dashboard works on phones.
+
+**Trust and privacy:** ESPN cookies are account credentials. The Cloudflare application encrypts them at rest, but its backend must decrypt them to call ESPN. This is not end-to-end encryption: the deployment operator and hosting platform are part of the trust boundary. Never share a recovery key or cookie in an issue, message, screenshot, or URL. This application never asks for your ESPN password.
+
+**Disconnect ESPN** removes the stored ESPN session but keeps the private dashboard. **Sign out** ends this browser's session only. **Delete private dashboard** removes its active stored credentials, cached data, and every browser session. Save the recovery key before closing its creation screen; lost keys cannot be recovered.
+
+See [Cloudflare hosting and privacy](docs/CLOUDFLARE.md) for the API, free-tier limits, and deployment instructions.
+
+## Connect your ESPN account locally
 
 Requirements: **Node.js 22 or later**, npm, and an installed Microsoft Edge or Google Chrome browser. The optional bundled Chromium browser can be installed if needed.
 
@@ -65,9 +81,9 @@ Open the same localhost address. `npm run dev:ui` starts only the Vite frontend 
 ## Data and privacy
 
 - The companion binds to loopback, not your LAN. Do not expose it with a tunnel, reverse proxy, or a public server.
-- Session cookies are retained in server memory and sent only to ESPN. They are not returned to the frontend, saved in local storage, written into the repository, or sent to GitHub Pages.
+- In local mode, ESPN cookies stay in server memory. In hosted mode, they are encrypted in Cloudflare D1. The backend sends them only to fixed ESPN endpoints, never returns them to the frontend, and never sends them to GitHub Pages.
 - Local storage contains only your color theme and watchlist player IDs.
-- Account operations require a per-process anti-CSRF token. The server restricts Host/Origin and does not enable cross-origin access.
+- Account operations require anti-CSRF tokens and exact same-origin requests. Hosted browser sessions use host-only Secure, HttpOnly, SameSite=Strict cookies; no permissive CORS is enabled.
 - Browser sign-in uses an ephemeral context rather than reading an existing personal browser profile.
 - ESPN endpoints are **unofficial** and can change or block requests. Discovery is best effort; the UI provides manual league entry rather than pretending enumeration is guaranteed.
 - Points are league-specific. Different scoring rules can produce different scores for the same NFL performance. Missing values display `--`, not a fabricated zero.
@@ -82,13 +98,14 @@ Open the same localhost address. `npm run dev:ui` starts only the Vite frontend 
 npm test          # Model, adapter, and server tests
 npm run build    # TypeScript check and production assets
 npm run test:e2e # Desktop/mobile Playwright workflows
+npm run build:cloud # TypeScript check and Cloudflare assets
 ```
 
 If Playwright reports a missing browser, run `npx playwright install chromium`. Browser tests use their own contexts and do not require or access a real ESPN account.
 
 See [ESPN companion details](docs/ESPN.md) for the local API contract, identity verification, membership discovery, scoring semantics, request limits, and troubleshooting.
 
-The app uses React, TypeScript, Vite, Lucide icons, Express, and Playwright. Styling uses the Clawpilot light/dark theme variables with no external font dependency.
+The app uses React, TypeScript, Vite, Lucide icons, Cloudflare Workers/D1, Express, and Playwright. Styling uses the Clawpilot light/dark theme variables with no external font dependency.
 
 ```text
 src/
@@ -98,6 +115,9 @@ src/
   lib/                    API client and pure gameday transformations
   types.ts                Frontend/companion contract
 server/                   Local authentication and ESPN integration
+worker/                   Hosted sessions, encrypted state, private API
+migrations/               Cloudflare D1 schema
+scripts/                  Credential-free runtime smoke checks
 tests/                    Model/server tests and browser workflows
 .github/workflows/        GitHub Pages deployment
 ```

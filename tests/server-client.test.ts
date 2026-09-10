@@ -6,6 +6,15 @@ const credentials = { swid, espnS2: 'valid-test-only-cookie' };
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
 
 describe('read-only ESPN transport', () => {
+  it('binds the native fetch receiver for the Cloudflare runtime', async () => {
+    vi.stubGlobal('fetch', function (this: unknown) {
+      if (this !== globalThis) throw new TypeError('Illegal invocation: incorrect fetch receiver.');
+      return Promise.resolve(json({ id: 123, seasonId: 2026, teams: [] }));
+    });
+    try {
+      await expect(new EspnClient().league(credentials, '123', 2026)).resolves.toMatchObject({ id: 123 });
+    } finally { vi.unstubAllGlobals(); }
+  });
   it('uses fixed read-only hosts, bounded requests and correct box-score filters', async () => {
     const transport = vi.fn<typeof fetch>().mockResolvedValue(json({ id: 123, seasonId: 2026, teams: [] }));
     const client = new EspnClient(transport);
@@ -16,8 +25,13 @@ describe('read-only ESPN transport', () => {
     expect(parsed.searchParams.getAll('view')).toContain('mScoreboard');
     expect(parsed.searchParams.get('scoringPeriodId')).toBe('3');
     expect(new Headers(options?.headers).get('x-fantasy-filter')).toContain('"value":[2]');
-    expect(options?.redirect).toBe('error');
+    expect(options?.redirect).toBe('manual');
     expect(options?.signal).toBeInstanceOf(AbortSignal);
+  });
+  it('loads only league metadata during discovery and team selection', async () => {
+    const transport = vi.fn<typeof fetch>().mockResolvedValue(json({ id: 123, seasonId: 2026, teams: [] }));
+    await new EspnClient(transport).league(credentials, '123', 2026);
+    expect(new URL(String(transport.mock.calls[0][0])).searchParams.getAll('view')).toEqual(['mTeam', 'mSettings']);
   });
   it('does not accept a public fan response as credential validation', async () => {
     const client = new EspnClient(vi.fn<typeof fetch>().mockImplementation(async () => json({ id: swid, preferences: [] })));
@@ -33,6 +47,20 @@ describe('read-only ESPN transport', () => {
     const transport = vi.fn<typeof fetch>().mockRejectedValue(new Error(`request ${swid} ${credentials.espnS2}`));
     await expect(new EspnClient(transport).league(credentials, '123', 2026)).rejects.not.toThrow(credentials.espnS2);
     await expect(new EspnClient(async () => json({ secret: credentials.espnS2 }, 403)).league(credentials, '123', 2026)).rejects.toThrow(/ESPN/i);
+  });
+  it('rejects redirected account requests without following the location', async () => {
+    const transport = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 302, headers: { Location: 'https://other.example/collect' } }));
+    await expect(new EspnClient(transport).league(credentials, '123', 2026)).rejects.toThrow(/redirect/i);
+    expect(transport).toHaveBeenCalledTimes(1);
+    expect(transport.mock.calls[0][1]?.redirect).toBe('manual');
+  });
+  it('uses the alternate ESPN public schedule host when the primary denies cloud requests', async () => {
+    const transport = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 403 }))
+      .mockResolvedValueOnce(json({ season: { year: 2026, type: 2 }, week: { number: 1 }, events: [] }));
+    expect(await new EspnClient(transport).scoreboard(2026, 1)).toEqual([]);
+    expect(new URL(String(transport.mock.calls[1][0])).hostname).toBe('site.web.api.espn.com');
+    for (const [, options] of transport.mock.calls) expect(new Headers(options?.headers).has('Cookie')).toBe(false);
   });
   it('rejects invalid cookie values and arbitrary league URLs before network access', async () => {
     const transport = vi.fn<typeof fetch>();

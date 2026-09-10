@@ -76,11 +76,17 @@ export function ConnectDialog({ onClose, onConnected, onDisconnect, initialSessi
     <div className="eyebrow">LESS TAB-HOPPING. MORE FOOTBALL.</div>
     <h2 id="connect-title">Your leagues. Connected.</h2>
     <p className="modal-intro">One ESPN account. Every starting lineup. An entirely better Sunday.</p>
-    <div className="privacy-note"><ShieldCheck size={20} /><span>Your password stays with ESPN. Your session stays on your machine. Credentials are sent only to ESPN, never to a third-party proxy.</span></div>
+    <div className="privacy-note"><ShieldCheck size={20} /><span>{api.isLocal
+      ? 'Your password stays with ESPN. Your session stays on your machine. Credentials are sent only to ESPN, never to a third-party proxy.'
+      : 'This static demo never receives account credentials. Use the connected Cloudflare app for encrypted hosted sessions, or run the local companion to keep credentials on your computer.'}</span></div>
 
     {!localReady ? <>
-      <h3><Terminal size={18} /> Bring your leagues home</h3>
-      <p className="muted small">This public site is an interactive demo. GitHub Pages cannot run a private ESPN session, so real leagues use the companion app on your computer. Requires Node.js 22+ and Chrome or Edge.</p>
+      {!api.isLocal && <>
+        <a className="button primary full-width" href="https://fantasy-dashboard-v1.daniel-beachy.workers.dev/" target="_blank" rel="noreferrer">Open connected web app <ExternalLink size={16} /></a>
+        <p className="fine-print">No local server needed. Save your private recovery key, then import your own ESPN session.</p>
+      </>}
+      <h3><Terminal size={18} /> {api.isLocal ? 'Bring your leagues home' : 'Run locally instead'}</h3>
+      <p className="muted small">The optional local companion opens ESPN's official sign-in browser and keeps credentials in memory. Requires Node.js 22+ and Chrome or Edge.</p>
       {api.isLocal && companionError && <p className="inline-warning">{companionError}</p>}
       <div className="code-block">
         <button className="icon-button" aria-label="Copy local setup commands" onClick={async () => {
@@ -92,8 +98,8 @@ export function ConnectDialog({ onClose, onConnected, onDisconnect, initialSessi
       <div className="setup-step"><span>1</span> Run the commands in a terminal.</div>
       <div className="setup-step"><span>2</span> Open <strong>http://127.0.0.1:3000</strong>.</div>
       <div className="setup-step"><span>3</span> Click Connect ESPN and sign in with ESPN.</div>
-      <a className="button primary full-width" href="https://github.com/daniel-beachy/fantasy-dashboard-v1#connect-your-espn-account" target="_blank" rel="noreferrer">View setup guide <ExternalLink size={16} /></a>
-      <p className="fine-print">No backend hosting account. No subscription. No credential-sharing proxy.</p>
+      <a className={`button ${api.isLocal ? 'primary' : 'secondary'} full-width`} href="https://github.com/daniel-beachy/fantasy-dashboard-v1#connect-your-espn-account-locally" target="_blank" rel="noreferrer">View setup guide <ExternalLink size={16} /></a>
+      <p className="fine-print">Local mode needs no hosting account, subscription, or credential-sharing proxy.</p>
     </> : session?.authenticated ? <>
       <div className="connected-heading"><span className="status-dot" /> ESPN session connected</div>
       {session.discoveryWarning && <p className="inline-warning">{session.discoveryWarning}</p>}

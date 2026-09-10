@@ -5,6 +5,7 @@ import { filterPlayers, groupPlayers, kickoffLabel, rootingGuide } from './lib/d
 import { api } from './lib/api';
 import type { DashboardData, PlayerAppearance, SessionStatus, Side } from './types';
 import { ConnectDialog } from './components/ConnectDialog';
+import { HostedConnectDialog } from './components/HostedConnectDialog';
 import { MatchupCard } from './components/MatchupCard';
 import { PlayerCard, PlayerDetails } from './components/PlayerCard';
 
@@ -102,7 +103,7 @@ export default function App() {
     return pending;
   }, []);
   useEffect(() => {
-    if (!api.isLocal) return;
+    if (!api.canConnect) return;
     let active = true;
     api.session().then(async status => {
       if (!active) return;
@@ -149,6 +150,10 @@ export default function App() {
   async function connected() {
     const status = await api.session();
     setSession(status);
+    if (!status.authenticated) {
+      resetDashboard();
+      throw new Error('Connect your ESPN session before opening your gameday.');
+    }
     setData(previous => previous?.source === 'espn' ? previous : null);
     clearFilters();
     await loadDashboard(true);
@@ -159,12 +164,42 @@ export default function App() {
     inFlight.current = null;
     setRefreshing(false);
     try {
-      await api.logout(); setSession(await api.session()); setData(demoData); setError(''); clearFilters();
+      await api.logout();
+      resetDashboard();
+      setSession(previous => previous ? { ...previous, authenticated: false, loginPending: false } : null);
+      setSession(await api.session());
       setToast('ESPN disconnected. Session credentials have been cleared.');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to disconnect from ESPN.');
       throw cause;
     }
+  }
+  function resetDashboard() {
+    generation.current++;
+    dashboardController.current?.abort();
+    inFlight.current = null;
+    setRefreshing(false);
+    setData(demoData); setSelectedPlayer(null); setError(''); clearFilters();
+  }
+  function hostedSessionChanged(status: SessionStatus) {
+    setSession(status);
+    setCompanionError('');
+    if (!status.authenticated) resetDashboard();
+    else {
+      setData(previous => previous?.source === 'espn' ? previous : null);
+      if (!session?.authenticated) void loadDashboard(true).catch(() => { /* The dashboard banner reports sync errors. */ });
+    }
+  }
+  async function leaveVault(remove = false) {
+    generation.current++;
+    dashboardController.current?.abort();
+    inFlight.current = null;
+    setRefreshing(false);
+    await (remove ? api.deleteVault() : api.logoutVault());
+    resetDashboard();
+    setSession({ mode: 'cloud', vaultAuthenticated: false, authenticated: false, loginPending: false, csrfToken: '' });
+    setSession(await api.session());
+    setToast(remove ? 'Private dashboard deleted. All devices have been signed out.' : 'Signed out of this browser. Your saved ESPN connection stays in your private dashboard.');
   }
   const players = data?.players ?? [];
   const leagues = data?.leagues ?? [];
@@ -276,7 +311,9 @@ export default function App() {
         <footer className="page-footer"><span><BrandMark />MADE FOR THE MULTI-LEAGUE LIFE.</span><span>{isDemo ? 'Illustrative demo · ' : 'Unofficial ESPN integration · '}Not affiliated with ESPN or the NFL.<a href="https://github.com/daniel-beachy/fantasy-dashboard-v1" target="_blank" rel="noreferrer">Source<ArrowRight size={12} /></a></span></footer>
       </main>
     </div>
-    {connectOpen && <ConnectDialog onClose={() => setConnectOpen(false)} onConnected={connected} onDisconnect={disconnect} initialSession={session} companionError={companionError} />}
+    {connectOpen && (api.isCloud
+      ? <HostedConnectDialog onClose={() => setConnectOpen(false)} onConnected={connected} onDisconnect={disconnect} onSignOut={() => leaveVault()} onDelete={() => leaveVault(true)} onSessionChange={hostedSessionChanged} initialSession={session} companionError={companionError} />
+      : <ConnectDialog onClose={() => setConnectOpen(false)} onConnected={connected} onDisconnect={disconnect} initialSession={session} companionError={companionError} />)}
     {selectedPlayer && <PlayerDetails player={players.find(p => p.id === selectedPlayer.id) ?? selectedPlayer} appearances={players.filter(p => p.playerId === selectedPlayer.playerId)} leagues={leagues} game={games.find(g => g.id === selectedPlayer.gameId)} onClose={() => setSelectedPlayer(null)} />}
     {toast && <div className="toast" role="status"><Check size={17} />{toast}<button className="icon-button" onClick={() => setToast('')} aria-label="Dismiss notification"><X size={15} /></button></div>}
   </>;

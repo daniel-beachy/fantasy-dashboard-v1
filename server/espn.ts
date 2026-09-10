@@ -23,7 +23,7 @@ export interface EspnGateway {
 }
 
 export class EspnClient implements EspnGateway {
-  constructor(private readonly transport: typeof fetch = fetch) {}
+  constructor(private readonly transport: typeof fetch = fetch.bind(globalThis)) {}
 
   private async request(url: URL, credentials?: Credentials, headers: Record<string, string> = {}): Promise<{ status: number; body: unknown }> {
     const requestHeaders = new Headers({ Accept: 'application/json', 'User-Agent': 'Mozilla/5.0 (compatible; LocalFantasyDashboard/1.0)', ...headers });
@@ -34,7 +34,11 @@ export class EspnClient implements EspnGateway {
     }
     const signal = AbortSignal.timeout(12_000);
     try {
-      const response = await this.transport(url, { method: 'GET', headers: requestHeaders, redirect: 'error', signal });
+      const response = await this.transport(url, { method: 'GET', headers: requestHeaders, redirect: 'manual', signal });
+      if (response.status >= 300 && response.status < 400) {
+        await response.body?.cancel();
+        throw new AppError(502, 'ESPN redirected this request unexpectedly. No account cookies were forwarded; please retry later.');
+      }
       if (!response.ok) {
         await response.body?.cancel();
         return { status: response.status, body: null };
@@ -117,7 +121,8 @@ export class EspnClient implements EspnGateway {
       throw new AppError(400, 'Invalid league ID, season, or scoring week.');
     }
     const url = new URL(`${READ_BASE}/seasons/${season}/segments/0/leagues/${id}`);
-    for (const view of ['mTeam', 'mSettings', 'mRoster', 'mMatchupScore', 'mScoreboard']) url.searchParams.append('view', view);
+    const views = week === undefined ? ['mTeam', 'mSettings'] : ['mTeam', 'mSettings', 'mRoster', 'mMatchupScore', 'mScoreboard'];
+    for (const view of views) url.searchParams.append('view', view);
     if (week !== undefined) url.searchParams.set('scoringPeriodId', String(week));
     const headers = matchup !== undefined ? { 'x-fantasy-filter': JSON.stringify({ schedule: { filterMatchupPeriodIds: { value: [matchup] } } }) } : undefined;
     const league = parseLeague(this.accepted(await this.request(url, credentials, headers)));
@@ -140,7 +145,12 @@ export class EspnClient implements EspnGateway {
     if (!seasonSchema.safeParse(season).success || !weekSchema.safeParse(week).success) throw new AppError(400, 'Invalid NFL season or week.');
     const url = new URL(SCOREBOARD);
     url.search = new URLSearchParams({ dates: String(season), seasontype: '2', week: String(week) }).toString();
-    const response = scoreboardSchema.safeParse(this.accepted(await this.request(url)));
+    let upstream = await this.request(url);
+    if (upstream.status === 403) {
+      url.hostname = 'site.web.api.espn.com';
+      upstream = await this.request(url);
+    }
+    const response = scoreboardSchema.safeParse(this.accepted(upstream));
     if (!response.success) throw new AppError(502, 'ESPN NFL schedule has an unexpected format.');
     if (response.data.season?.year !== season || response.data.season?.type !== 2 || response.data.week?.number !== week) {
       throw new AppError(502, 'ESPN returned a schedule for a different season or week.');

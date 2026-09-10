@@ -68,4 +68,6 @@ export interface SessionStatus {
   csrfToken: string;
   loginError?: string;
   discoveryWarning?: string;
+  mode?: 'local' | 'cloud';
+  vaultAuthenticated?: boolean;
 }
