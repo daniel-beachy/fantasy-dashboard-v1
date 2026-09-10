@@ -101,7 +101,7 @@ export function ConnectDialog({ onClose, onConnected, onDisconnect, initialSessi
       <a className={`button ${api.isLocal ? 'primary' : 'secondary'} full-width`} href="https://github.com/daniel-beachy/fantasy-dashboard-v1#connect-your-espn-account-locally" target="_blank" rel="noreferrer">View setup guide <ExternalLink size={16} /></a>
       <p className="fine-print">Local mode needs no hosting account, subscription, or credential-sharing proxy.</p>
     </> : session?.authenticated ? <>
-      <div className="connected-heading"><span className="status-dot" /> ESPN session connected</div>
+      <div className="connected-heading"><span className="status-dot" /> {leagues.length ? 'ESPN session connected' : 'ESPN cookies saved'}</div>
       {session.discoveryWarning && <p className="inline-warning">{session.discoveryWarning}</p>}
       <p className="small muted">Check your leagues below. Missing one? Add its numeric league ID from the ESPN league URL. Only teams owned by your ESPN account can be selected.</p>
       <div className="connected-leagues">

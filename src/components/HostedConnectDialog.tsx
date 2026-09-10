@@ -137,7 +137,7 @@ export function HostedConnectDialog({ onClose, onConnected, onDisconnect, onSign
     </div> : <>
       <div className="vault-status"><ShieldCheck size={16} /><span>Private dashboard unlocked</span></div>
       {session.authenticated ? <>
-        <div className="connected-heading"><span className="status-dot" /> ESPN session connected</div>
+        <div className="connected-heading"><span className="status-dot" /> {leagues.length ? 'ESPN session connected' : 'ESPN cookies saved'}</div>
         {session.discoveryWarning && <p className="inline-warning">{session.discoveryWarning}</p>}
         <p className="small muted">Choose your owned teams below. Missing a league? Add its numeric ID from the ESPN league URL.</p>
         <div className="connected-leagues">

@@ -15,7 +15,7 @@ const raw = (id = 123) => ({
   schedule: [{ matchupPeriodId: 1, home: { teamId: 1, totalPoints: 0 }, away: { teamId: 2, totalPoints: 0 } }],
 });
 const gateway = (): EspnGateway => ({
-  validate: vi.fn().mockResolvedValue({ id: swid, preferences: [] }),
+  profile: vi.fn().mockResolvedValue({ id: swid, preferences: [] }),
   discover: vi.fn().mockResolvedValue({ leagueIds: ['123'], warning: 'Enumeration may be incomplete. Add missing league IDs.' }),
   league: vi.fn().mockImplementation(async (_credentials, id) => raw(Number(id))),
   currentWeek: vi.fn().mockResolvedValue(1),
@@ -84,9 +84,9 @@ describe('localhost API boundary and lifecycle', () => {
     expect((await post('/api/logout')).status).toBe(200);
     expect((await fetch(`${origin}/api/dashboard`)).status).toBe(401);
   });
-  it('does not claim authentication on rejected validation', async () => {
+  it('does not save a connection when profile lookup fails', async () => {
     const client = gateway();
-    vi.mocked(client.validate).mockRejectedValue(new Error(input.espnS2));
+    vi.mocked(client.profile).mockRejectedValue(new Error(input.espnS2));
     const { post, service } = await setup(client);
     const response = await post('/api/connect', input);
     expect(response.status).toBeGreaterThanOrEqual(400);
@@ -151,7 +151,7 @@ describe('localhost API boundary and lifecycle', () => {
   it('does not restore cookies if an in-flight connect finishes after logout', async () => {
     const client = gateway();
     let finish!: (profile: unknown) => void;
-    vi.mocked(client.validate).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    vi.mocked(client.profile).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
     const { service } = await setup(client);
     const connecting = service.connect(input);
     const assertion = expect(connecting).rejects.toThrow(/session changed/i);
@@ -160,7 +160,7 @@ describe('localhost API boundary and lifecycle', () => {
     await assertion;
     expect(service.status().authenticated).toBe(false);
   });
-  it('allows manual league fallback when verified automatic discovery is empty', async () => {
+  it('allows manual league fallback when automatic discovery is empty', async () => {
     const client = gateway();
     vi.mocked(client.discover).mockResolvedValue({ leagueIds: [], warning: 'Add missing league IDs.' });
     const { post, origin } = await setup(client);

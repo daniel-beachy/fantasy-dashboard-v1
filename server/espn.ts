@@ -15,7 +15,7 @@ const READ_LIMIT = 8 * 1024 * 1024;
 
 export interface Discovery { leagueIds: string[]; warning: string }
 export interface EspnGateway {
-  validate(credentials: Credentials): Promise<unknown>;
+  profile(credentials: Credentials): Promise<unknown>;
   discover(credentials: Credentials, season: number, profile?: unknown): Promise<Discovery>;
   league(credentials: Credentials, id: string, season: number, week?: number, matchup?: number): Promise<EspnLeague>;
   currentWeek(season: number): Promise<number>;
@@ -91,26 +91,22 @@ export class EspnClient implements EspnGateway {
     return url;
   }
 
-  async validate(credentials: Credentials): Promise<unknown> {
+  async profile(credentials: Credentials): Promise<unknown> {
     const url = this.fanUrl(credentials);
     const response = await this.request(url, credentials);
-    const message = 'Could not verify the ESPN session. Sign in using the official browser, or import fresh cookies from your own signed-in ESPN account.';
+    const message = 'Could not load the ESPN profile matching this SWID. Copy fresh SWID and espn_s2 values from the same signed-in ESPN account.';
     if (response.status !== 200) throw new AppError(401, message);
     const identity = identitySchema.safeParse(response.body);
     if (!identity.success) throw new AppError(401, message);
     const value = identity.data;
     const owner = value.id ?? value.swid ?? value.guid ?? value.profile?.id ?? value.profile?.swid ?? value.profile?.guid;
     if (!owner || canonicalOwner(owner) !== canonicalOwner(credentials.swid)) throw new AppError(401, message);
-    // A publicly readable profile cannot prove that a cookie is valid.
-    const anonymous = await this.request(url);
-    if (![401, 403, 404].includes(anonymous.status)) {
-      throw new AppError(401, 'ESPN session verification is unavailable: its account endpoint did not require authentication. Use official browser sign-in and retry later.');
-    }
+    // Fan profiles can be public. League requests, not this metadata, enforce ESPN access.
     return response.body;
   }
 
   async discover(credentials: Credentials, season: number, profile?: unknown): Promise<Discovery> {
-    const body = profile ?? this.accepted(await this.request(this.fanUrl(credentials), credentials));
+    const body = profile ?? await this.profile(credentials);
     return { leagueIds: extractLeagueIds(body, season), warning: DISCOVERY_WARNING };
   }
 

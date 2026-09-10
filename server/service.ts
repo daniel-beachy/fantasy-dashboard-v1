@@ -139,7 +139,7 @@ export class DashboardService {
     await this.establish({ swid, espnS2 }, season ?? currentSeason(this.now()), leagueIds ?? [], generation);
   }
   private async establish(credentials: Credentials, season: number, hints: string[], generation: number): Promise<void> {
-    const profile = await this.client.validate(credentials);
+    const profile = await this.client.profile(credentials);
     this.checkGeneration(generation);
     let ids = hints;
     let warning = DISCOVERY_WARNING;
@@ -156,6 +156,7 @@ export class DashboardService {
     }
     this.checkGeneration(generation);
     const errors: string[] = [];
+    let failureStatus: number | undefined;
     const selected = await mapBounded(ids, async id => {
       try {
         this.checkGeneration(generation);
@@ -163,14 +164,22 @@ export class DashboardService {
         if (league.status?.isActive === false) return undefined;
         return leagueSelection(league, credentials.swid);
       } catch (error) {
+        failureStatus ??= error instanceof AppError ? error.status : 502;
         errors.push(`League ${id}: ${safeMessage(error)}`);
         return undefined;
       }
     });
     this.checkGeneration(generation);
+    const available = selected.filter((selection): selection is LeagueSelection => selection !== undefined);
+    if (ids.length && !available.length) {
+      throw new AppError(failureStatus ?? 400, errors.length
+        ? `No league could be connected. ${errors.join(' ')}`
+        : 'No active football teams were found in the discovered leagues for this season.');
+    }
+    if (!ids.length) warning = `Cookies saved for manual setup; league access has not been verified yet. ${warning}`;
     this.credentials = credentials;
     this.season = season;
-    this.selections = new Map(selected.filter((selection): selection is LeagueSelection => selection !== undefined).map(selection => [selection.id, selection]));
+    this.selections = new Map(available.map(selection => [selection.id, selection]));
     this.discoveryWarning = [warning, ...errors].join(' ');
     this.cache.clear();
   }

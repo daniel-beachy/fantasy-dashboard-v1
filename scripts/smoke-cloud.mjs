@@ -44,6 +44,7 @@ try {
   if (process.env.SMOKE_ESPN === '1') {
     const denied = await request('connect', { swid: `{${randomUUID()}}`, espnS2: 'deliberately-invalid-smoke-cookie' });
     assert.equal(denied.status, 401, denied.result.error || 'ESPN must reject fabricated account credentials.');
+    assert.match(denied.result.error, /profile.*SWID/i, 'The deployed Worker must use profile discovery, not the removed anonymous-status gate.');
     assert.equal((await session()).authenticated, false);
     console.log('Fabricated ESPN credentials correctly rejected by the hosted connection flow.');
   }

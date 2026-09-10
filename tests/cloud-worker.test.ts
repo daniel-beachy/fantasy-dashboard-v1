@@ -5,7 +5,7 @@ import { createHandler, type Env } from '../worker';
 import { randomToken } from '../worker/crypto';
 import type { SqlDatabase, SqlStatement } from '../worker/storage';
 import { fixtureLeague, SWID } from './helpers/espn';
-import type { EspnGateway } from '../server/espn';
+import { EspnClient, type EspnGateway } from '../server/espn';
 
 class Statement implements SqlStatement {
   private values: SQLInputValue[] = [];
@@ -42,7 +42,7 @@ describe('hosted private dashboard API', () => {
     database.exec(readFileSync(new URL('../migrations/0001_vaults.sql', import.meta.url), 'utf8'));
     env = { DB: new Database(database), VAULT_KEY: randomToken(), ASSETS: { fetch: async () => new Response('assets') } };
     client = {
-      validate: vi.fn(async () => ({})),
+      profile: vi.fn(async () => ({})),
       discover: vi.fn(async () => ({ leagueIds: ['123'], warning: '' })),
       league: vi.fn(async () => fixtureLeague()),
       currentWeek: vi.fn(async () => 1),
@@ -103,6 +103,27 @@ describe('hosted private dashboard API', () => {
     expect(response.headers.get('Set-Cookie')).not.toContain('Domain=');
     expect((await browser.request('session', undefined, { 'sec-fetch-site': 'cross-site' })).status).toBe(403);
   });
+  it.each([true, false])('bases hosted cookie-import success on league access, not public profile status (allowed=%s)', async allowed => {
+    const upstream = vi.fn<typeof fetch>().mockImplementation(async (url, options) => {
+      if (new URL(String(url)).hostname === 'fan.api.espn.com') {
+        return Response.json({
+          id: SWID,
+          preferences: [{ metaData: { entry: { gameId: 1, seasonId: 2026, groups: [{ groupId: 123 }] } } }],
+        });
+      }
+      if (!allowed || !new Headers(options?.headers).get('Cookie')?.includes('espn_s2=imported-cookie')) return Response.json({}, { status: 401 });
+      return Response.json(fixtureLeague());
+    });
+    handler = createHandler(new EspnClient(upstream));
+    const browser = new Browser();
+    await browser.create();
+    const result = await browser.request('connect', { swid: SWID, espnS2: 'imported-cookie', season: 2026 });
+    expect(result.status).toBe(allowed ? 200 : 401);
+    expect(await browser.session()).toMatchObject({ authenticated: allowed, vaultAuthenticated: true });
+    expect(upstream.mock.calls).toHaveLength(2);
+    if (allowed) expect((await (await browser.request('leagues')).json()).leagues).toMatchObject([{ id: '123' }]);
+    else expect((await browser.request('leagues')).status).toBe(401);
+  });
   it('requires origin, CSRF, valid bodies, and an authenticated vault', async () => {
     const browser = new Browser();
     await browser.session();
@@ -139,7 +160,7 @@ describe('hosted private dashboard API', () => {
     let release!: () => void;
     let entered!: () => void;
     const started = new Promise<void>(resolve => { entered = resolve; });
-    vi.mocked(client.validate).mockImplementation(async () => { entered(); await new Promise<void>(resolve => { release = resolve; }); return {}; });
+    vi.mocked(client.profile).mockImplementation(async () => { entered(); await new Promise<void>(resolve => { release = resolve; }); return {}; });
     const pending = browser.request('connect', { swid: SWID, espnS2: 'cookie', season: 2026 });
     await started;
     expect((await browser.request(action, action.endsWith('/delete') ? { confirm: true } : {})).status).toBe(200);

@@ -27,7 +27,9 @@ Own-cookie import is an optional fallback. Copy only the values of **your own** 
 
 ### Honest authentication and discovery limitations
 
-ESPN does not provide this app an official OAuth integration. Its unofficial read endpoints can change, deny access, or rate-limit requests. Cookies are not considered authenticated merely because they have the right format: the server requires a matching account identity from the Fan API with cookies, and verifies that an anonymous request is denied. If that endpoint becomes publicly readable or cannot verify identity, the app **fails closed** with an actionable error rather than claiming successful authentication.
+ESPN does not provide this app an official OAuth integration. Its unofficial read endpoints can change, deny access, or rate-limit requests. The Fan API can return a matching profile without authentication, so it is used only for account-reference checking and league discovery, never as proof that a cookie is valid. Each league request sends the supplied cookies to ESPN, respects access denials, and checks that the supplied SWID owns the selected team. Public league data can be readable without valid cookies; private-league authorization remains ESPN's responsibility.
+
+If every discovered league is inaccessible, connection fails instead of reporting success with an empty league list. If discovery returns no league IDs, cookies can be saved for the existing manual-entry flow, with an explicit warning that league access has not yet been verified. The legacy `authenticated` session field means ESPN credentials are loaded; it is not an OAuth identity assertion. In hosted mode, access to the private dashboard itself is independently authenticated by its recovery-key/browser session.
 
 Discovery uses the Fan API's current-season football preferences and league links / read-request URLs observed in the official sign-in browser. It verifies league access and SWID team ownership before tracking a league. Discovery is **not guaranteed exhaustive**; `discoveryWarning` always explains that missing league IDs can be added manually. The ID is the numeric `leagueId` in your ESPN league URL. No historical-league endpoint is treated as a list of your leagues.
 
@@ -49,7 +51,7 @@ Every mutation requires all of:
 |---|---|---|---|
 | GET | `/api/session` | None | `SessionStatus`: `authenticated`, `loginPending`, `csrfToken`, optional `loginError`, `discoveryWarning` |
 | POST | `/api/login` | `{}` | `{ "ok": true }` immediately; poll `/api/session` |
-| POST | `/api/connect` | `{ "swid": "...", "espnS2": "...", "season"?: 2026, "leagueIds"?: ["123"] }` | `{ "ok": true }` only after account verification and discovery |
+| POST | `/api/connect` | `{ "swid": "...", "espnS2": "...", "season"?: 2026, "leagueIds"?: ["123"] }` | `{ "ok": true }` after profile/discovery and league-access checks; no discovered IDs enters warned manual setup |
 | POST | `/api/logout` | `{}` | `{ "ok": true }` |
 | GET | `/api/leagues` | None | `{ "leagues": LeagueSelection[] }` |
 | POST | `/api/leagues` | `{ "leagueId": "123", "teamId"?: 1 }` | `{ "leagues": LeagueSelection[] }`; team must be owned by the signed-in SWID |

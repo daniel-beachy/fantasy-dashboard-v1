@@ -33,13 +33,15 @@ Errors use `{ "error": "actionable message" }`. All mutation bodies are JSON and
 | POST | `/api/vaults/login` | `{ recoveryKey }` | `{ ok: true }`, plus new browser session |
 | POST | `/api/vaults/logout` | `{}` | Revoke this browser |
 | POST | `/api/vaults/delete` | `{ confirm: true }` | Delete the private dashboard |
-| POST | `/api/connect` | `{ swid, espnS2, season?, leagueIds? }` | Verify ESPN identity, discover owned leagues, persist encrypted state |
+| POST | `/api/connect` | `{ swid, espnS2, season?, leagueIds? }` | Discover leagues from the matching profile, check ESPN league access/ownership, persist encrypted state |
 | POST | `/api/logout` | `{}` | Disconnect ESPN |
 | GET | `/api/leagues` | None | `{ leagues }` |
 | POST | `/api/leagues` | `{ leagueId, teamId? }` | Verify ownership and update selections |
 | GET | `/api/dashboard` | `leagueId` | One owned league's `DashboardData` |
 
 The browser refreshes leagues with at most four parallel API calls. Successful leagues survive individual failures, with warnings; inconsistent seasons/weeks and session expiry are not silently merged. The earliest successful snapshot timestamp represents the merged data's age. The local companion still accepts its original single dashboard request.
+
+ESPN Fan profiles can be publicly readable and are not used to authenticate cookies. ESPN enforces private-league access on each league request; the supplied SWID selects an owned team within accessible data. A connection fails if every discovered league is rejected. Empty discovery retains the existing manual league-entry flow with an unverified-access warning. The session field `authenticated` indicates stored ESPN credentials, not independently proven ESPN identity; `vaultAuthenticated` separately protects the hosted dashboard.
 
 ## Free-tier design and limits
 

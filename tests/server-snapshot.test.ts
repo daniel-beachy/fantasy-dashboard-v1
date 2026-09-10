@@ -5,7 +5,7 @@ import { fixtureLeague as league, SWID } from './helpers/espn';
 
 const credentials = { swid: SWID, espnS2: 'fixture-espn-session' };
 const gateway = (): EspnGateway => ({
-  validate: vi.fn().mockResolvedValue({ id: credentials.swid }),
+  profile: vi.fn().mockResolvedValue({ id: credentials.swid }),
   discover: vi.fn().mockResolvedValue({ leagueIds: ['123'], warning: 'Add missing leagues.' }),
   league: vi.fn().mockImplementation(async (_credentials, id) => league(Number(id))),
   currentWeek: vi.fn().mockResolvedValue(1),
