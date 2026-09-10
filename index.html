@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      (() => {
+        const param = new URLSearchParams(window.location.search).get("clawpilotTheme");
+        const theme =
+          param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#292929" />
+    <meta name="description" content="Your entire fantasy football Sunday, in one place. Track your starters, your opponents, and every reason to cheer across all your ESPN leagues." />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>Sunday HQ — Your gameday, all together.</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

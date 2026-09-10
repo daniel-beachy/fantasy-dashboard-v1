@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
+  <style>:root{--cp-accent:#b11f4b;--cp-accent-fg:#ffffff}@media(prefers-color-scheme:dark){:root{--cp-accent:#fd8ea1;--cp-accent-fg:#1a1a1a}}</style>
+  <rect width="40" height="40" rx="11" fill="var(--cp-accent)"/>
+  <g stroke="var(--cp-accent-fg)" fill="none" stroke-linecap="round" stroke-width="2"><path d="M10 29C9 16 17 9 30 10C31 23 23 31 10 29Z"/><path d="m14 26 12-12m-9 3 6 6m-9-3 6 6m0-12 6 6"/></g>
+</svg>
