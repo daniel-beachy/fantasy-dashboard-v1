@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDownRight, ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, Clock3, Eye, LayoutGrid, LoaderCircle, LogOut, Moon, Plus, Radio, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Sparkles, Star, Sun, Target, Trophy, TriangleAlert, X, Zap } from 'lucide-react';
+import { ArrowDownRight, ArrowRight, ArrowUpRight, CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, Clock3, Eye, Home, LayoutGrid, LoaderCircle, LogOut, Moon, Plus, Radio, RefreshCw, Search, ShieldCheck, SlidersHorizontal, Sparkles, Star, Sun, Target, Trophy, TriangleAlert, X, Zap } from 'lucide-react';
 import { demoData, DEMO_NOW } from './data/demo';
 import { filterPlayers, groupPlayers, kickoffLabel, rootingGuide } from './lib/dashboard';
 import { api } from './lib/api';
@@ -222,6 +222,7 @@ export default function App() {
       <a className="brand" href="./" aria-label="Sunday HQ home"><BrandMark /><span>SUNDAY<span className="brand-hq">HQ</span><small>YOUR GAMEDAY. ALL TOGETHER.</small></span></a>
       <div className="topbar-center"><span className="season-label">FANTASY FOOTBALL</span><span className="topbar-separator" />{data?.season ?? new Date().getFullYear()} SEASON</div>
       <div className="topbar-actions">
+        <a className="portfolio-button" href="https://daniel-beachy.github.io/"><Home size={14} />Portfolio</a>
         <span className={`mode-badge ${isDemo ? 'demo-badge' : ''}`}>{isDemo ? <Eye size={13} /> : <ShieldCheck size={14} />}{isDemo ? 'Demo mode' : session?.authenticated ? 'ESPN connected' : 'Connecting'}</span>
         <button className="icon-button theme-button" aria-label="Toggle color theme" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}</button>
         <button className="button primary connect-top" onClick={() => setConnectOpen(true)}>{session?.authenticated ? 'Manage leagues' : 'Connect ESPN'}<ArrowRight size={16} /></button>

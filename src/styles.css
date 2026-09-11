@@ -100,6 +100,8 @@ label { display: block; }
 .season-label { color: var(--cp-text); }
 .topbar-separator { height: 12px; width: 1px; background: var(--cp-border); }
 .topbar-actions { display: flex; align-items: center; gap: 16px; margin-left: auto; }
+.portfolio-button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 9px; color: var(--cp-text-muted); border-radius: 7px; font-size: 10px; font-weight: 650; }
+.portfolio-button:hover { color: var(--cp-text); background: var(--cp-surface-soft); }
 .mode-badge { display: inline-flex; gap: 6px; align-items: center; color: var(--cp-success); font-size: 11px; font-weight: 600; white-space: nowrap; }
 .demo-badge { color: var(--cp-text-muted); border: 1px solid var(--cp-border); padding: 4px 8px; border-radius: 6px; background: var(--cp-surface-soft); }
 .app-layout { display: grid; grid-template-columns: 216px minmax(0, 1fr); min-height: calc(100vh - 78px); max-width: 1800px; margin: auto; }
@@ -453,6 +455,8 @@ input[type="checkbox"] { accent-color: var(--cp-accent); }
   .brand > span { font-size: 19px; }
   .brand small { display: none; }
   .topbar-actions { gap: 9px; }
+  .portfolio-button { padding: 7px; font-size: 0; gap: 0; }
+  .portfolio-button svg { width: 16px; height: 16px; }
   .connect-top { padding: 8px 10px; font-size: 10px; }
   .connect-top svg { width: 13px; }
   .mode-badge { font-size: 9px; padding: 3px 6px; }
